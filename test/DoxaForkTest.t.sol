@@ -8,7 +8,7 @@ import {FixedPointMathLib} from "lib/solady/src/utils/FixedPointMathLib.sol";
 import {IUniswapV2Pair} from "src/interface/IUniswapV2Pair.sol";
 import {IUniswapV2Factory} from "src/interface/IUniswapV2Factory.sol";
 
-contract DoxaBondingCurveTest is Test {
+contract DoxaForkTest is Test {
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
     /*                       CONSTANTS                            */
     /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
@@ -50,13 +50,6 @@ contract DoxaBondingCurveTest is Test {
         uniswapV2Factory = IUniswapV2Factory(UNISWAP_V2_FACTORY);
         bondingCurve = new DoxaBondingCurve("MyToken", "TKN");
     }
-
-    // function testConsole() public {
-    //     (uint256 amountOut, uint256 newActiveTier, uint256 unfulfilledInNewTier) = _simulateBuyTransaction(0.4 ether, 5 ether, 0.73 ether);
-    //     console.log(amountOut);
-    //     console.log(unfulfilledInNewTier);
-    //     console.log(newActiveTier);
-    // }
 
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
     /*                       TEST: BUY                            */

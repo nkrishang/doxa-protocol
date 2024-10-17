@@ -7,7 +7,7 @@ import {FixedPointMathLib} from "lib/solady/src/utils/FixedPointMathLib.sol";
 import {IWETH} from "src/interface/IWETH.sol";
 import {IUniswapV2Router01} from "src/interface/IUniswapV2Router01.sol";
 
-contract DoxaBondingCurve is ERC20 {
+contract DoxaBondingCurveNoLp is ERC20 {
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
     /*                       CONSTANTS                            */
     /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
@@ -21,19 +21,6 @@ contract DoxaBondingCurve is ERC20 {
     /// @notice The maximum ether that can be used to buy tokens in one transaction.
     ///         This limits one transaction from buying an arbitrary amount of discounted tokens.
     uint256 private constant MAX_VALUE = 10 ether;
-
-    /// @notice If the contract balance exceeds this amount in a buy transaction, the full contract 
-    ///         balance will be deposited as liquidity with the proportionate amount of tokens.
-    uint256 private constant LIQUIDITY_THRESHOLD = 1 ether;
-
-    /// @notice The amount of token to LP: (10_000 * (0.997)^100) * 1 ether
-    uint256 private constant LP_AMOUNT_PER_ETHER = 7404842595397826248704;
-
-    /// @notice The address of the WETH9 contract on Base.
-    address private constant WETH = 0x4200000000000000000000000000000000000006;
-
-    /// @notice The address of the Uniswap V2 Router contract on Base.
-    address private constant UNISWAP_V2_ROUTER = 0x4752ba5DBc23f44D87826276BF6Fd6b1C372aD24;
 
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
     /*                       STORAGE                              */
@@ -144,8 +131,10 @@ contract DoxaBondingCurve is ERC20 {
             if(value < unfulfilled) {
                 amountOut += FixedPointMathLib.mulWad(value, FixedPointMathLib.mulWad(A, decay));
                 
-                // Store unfulfilled ether till next tier.
-                unfulfilledEtherTillNextTier = unfulfilled - value;
+                // Update unfulfilled
+                unfulfilled -= value;
+                
+                // Update value
                 value = 0;
             } else {
                 amountOut += FixedPointMathLib.mulWad(unfulfilled, FixedPointMathLib.mulWad(A, decay));
@@ -153,11 +142,11 @@ contract DoxaBondingCurve is ERC20 {
                 // Update value
                 value -= unfulfilled;
 
+                // Update unfulfilled
+                unfulfilled = 1 ether;
+
                 // Update tier
                 n += 1 ether;
-
-                // Update unfulfilled
-                unfulfilledEtherTillNextTier = 1 ether;
             }
         }
 
@@ -189,42 +178,18 @@ contract DoxaBondingCurve is ERC20 {
             // Update amountOut += (A * (0.997)^n) * value where 0 < value < 1
             amountOut += FixedPointMathLib.mulWad(value, FixedPointMathLib.mulWad(A, decay));
 
-            // Store unfulfilled ether till next tier.
-            unfulfilledEtherTillNextTier = 1 ether - value;
+            // Store unfulfilled
+            unfulfilled = 1 ether - value;
         }
 
         // Store updated tier
         n_tier = n;
 
+        // Store unfulfilled
+        unfulfilledEtherTillNextTier = unfulfilled;
+
         // Mint tokens
         _mint(msg.sender, amountOut);
-
-        {
-            if(address(this).balance > LIQUIDITY_THRESHOLD) {
-                // Deposit msg.value and LP_AMOUNT of tokens into AMM pool.
-                uint256 etherLp = address(this).balance ;
-                uint256 tokenLp = FixedPointMathLib.mulWad(etherLp, LP_AMOUNT_PER_ETHER);
-    
-                // Approve router to use ether LP
-                IWETH(WETH).deposit{value: etherLp}();
-                IWETH(WETH).approve(UNISWAP_V2_ROUTER, etherLp);
-    
-                // Approve router to use token LP
-                _mint(address(this), tokenLp);
-                this.approve(UNISWAP_V2_ROUTER, tokenLp);
-    
-                IUniswapV2Router01(UNISWAP_V2_ROUTER).addLiquidity({
-                    tokenA: WETH,
-                    tokenB: address(this),
-                    amountADesired: etherLp,
-                    amountBDesired: tokenLp,
-                    amountAMin: etherLp,
-                    amountBMin: 0,
-                    to: address(this),
-                    deadline: block.timestamp
-                });
-            }
-        }
         
         emit BuyTokens(msg.sender, msg.value, amountOut);
     }
