@@ -1,17 +1,29 @@
-## Foundry
+# Doxa
 
-**Foundry is a blazing fast, portable and modular toolkit for Ethereum application development written in Rust.**
+**Doxa is the simplest way to fair-launch tokens with instant liquidity. Programmed for no pre-sales, no rug-pulls.**
 
-Foundry consists of:
+Doxa consists of:
 
--   **Forge**: Ethereum testing framework (like Truffle, Hardhat and DappTools).
--   **Cast**: Swiss army knife for interacting with EVM smart contracts, sending transactions and getting chain data.
--   **Anvil**: Local Ethereum node, akin to Ganache, Hardhat Network.
--   **Chisel**: Fast, utilitarian, and verbose solidity REPL.
+- **DoxaBondingCurve**: An ERC-20 smart contract that sells tokens on the following bonding curve:
 
-## Documentation
+```
+F(n) = 10,000 * (0.997)^n
+```
 
-https://book.getfoundry.sh/
+where _n_ is the amount of ether spent buying tokens, modulo 1 ether. The contract starts by selling 10,000 tokens in exchange for the first 1 ether, and 0.3% less tokens per next ether.
+
+On every token purchase, the contract deposits all its ether and proportionate tokens as liquidity in a Uniswap V2 AMM Pool,
+up till _n=100_. After that, the contract uses all its ether balance to buy back the token on the AMM and burning it, creating
+upward price pressure.
+
+- **DoxaFactory**: A factory for deploying `DoxaBondingCurve` contracts.
+
+## Deployments
+
+**Doxa** is live on [Base](https://basescan.org/) and all contracts are verified.
+
+- `DoxaFactory`: [0x8191bf8672b7142de7b2ff8eeded033a672d17b4](https://basescan.org/address/0x8191bf8672b7142de7b2ff8eeded033a672d17b4)
+- `DoxaBondingCurve` implementation: [0xB6cF389aC2B12dA0C5C648434176DfCc13b8Bba0](https://basescan.org/address/0xB6cF389aC2B12dA0C5C648434176DfCc13b8Bba0)
 
 ## Usage
 
@@ -24,43 +36,11 @@ $ forge build
 ### Test
 
 ```shell
-$ forge test
+$ make test FORK_URL=<Base Mainnet RPC>
 ```
 
 ### Format
 
 ```shell
 $ forge fmt
-```
-
-### Gas Snapshots
-
-```shell
-$ forge snapshot
-```
-
-### Anvil
-
-```shell
-$ anvil
-```
-
-### Deploy
-
-```shell
-$ forge script script/Counter.s.sol:CounterScript --rpc-url <your_rpc_url> --private-key <your_private_key>
-```
-
-### Cast
-
-```shell
-$ cast <subcommand>
-```
-
-### Help
-
-```shell
-$ forge --help
-$ anvil --help
-$ cast --help
 ```
