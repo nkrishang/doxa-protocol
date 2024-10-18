@@ -2,6 +2,8 @@
 
 **Doxa is the simplest way to fair-launch tokens with instant liquidity. Programmed for no pre-sales, no rug-pulls.**
 
+> **Note**: This protocol is **NOT** audited. Please use your own discretion.
+
 Doxa consists of:
 
 - **DoxaBondingCurve**: An ERC-20 smart contract that sells tokens on the following bonding curve:
