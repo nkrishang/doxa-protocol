@@ -139,11 +139,11 @@ contract DoxaForkTest is Test {
         (uint256 reserve0X, uint256 reserve1X, ) = uniswapV2Pair.getReserves();
         
         uint256 result = FixedPointMathLib.mulWad(LP_AMOUNT_PER_ETHER, x);
-        assertEq(reserve0X, x);
-        if(result > reserve1X) {
-            assertTrue(result - reserve1X < 10);
+        assertEq(reserve1X, x);
+        if(result > reserve0X) {
+            assertTrue(result - reserve0X < 10);
         } else {
-            assertTrue(reserve1X - result < 10);
+            assertTrue(reserve0X - result < 10);
         }
 
         // Check whether LP shares minted to the contract
@@ -162,17 +162,17 @@ contract DoxaForkTest is Test {
         (uint256 reserve0XY, uint256 reserve1XY, ) = uniswapV2Pair.getReserves();
 
         result = FixedPointMathLib.mulWad(LP_AMOUNT_PER_ETHER, (x+y));
-        assertEq(reserve0XY, x+y);    
-        if(result > reserve1XY) {
-            assertTrue(result - reserve1XY < 10);
+        assertEq(reserve1XY, x+y);    
+        if(result > reserve0XY) {
+            assertTrue(result - reserve0XY < 10);
         } else {
-            assertTrue(reserve1XY - result < 10);
+            assertTrue(reserve0XY - result < 10);
         }
 
         assertGt(uniswapV2Pair.balanceOf(address(bondingCurve)), bal);
 
         // Check token price.
-        assertEq(FixedPointMathLib.divWadUp(reserve1XY, reserve0XY), LP_AMOUNT_PER_ETHER);
+        assertEq(FixedPointMathLib.divWadUp(reserve0XY, reserve1XY), LP_AMOUNT_PER_ETHER);
     }
 
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
@@ -276,6 +276,6 @@ contract DoxaForkTest is Test {
         IUniswapV2Pair uniswapV2Pair = IUniswapV2Pair(uniswapV2Factory.getPair(WETH, address(bondingCurve)));
         (uint256 reserveX, uint256 reserveY, ) = uniswapV2Pair.getReserves();
 
-        amountBurned = IUniswapV2Router01(UNISWAP_V2_ROUTER).getAmountOut(etherAmount, reserveX, reserveY);
+        amountBurned = IUniswapV2Router01(UNISWAP_V2_ROUTER).getAmountOut(etherAmount, reserveY, reserveX);
     }
 }

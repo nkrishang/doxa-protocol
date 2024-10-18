@@ -55,7 +55,7 @@ contract DoxaBondingCurve is ERC20, Initializable {
 
     /// @notice The ether that can be used to buy tokens at the current decay factor
     /// @dev Invariant: unfulfilledEtherInTier == 1 ether - (etherSentToBuyInLifetime % 1 ether)
-    uint128 public unfulfilledEtherInTier = 1 ether;
+    uint128 public unfulfilledEtherInTier;
 
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
     /*                       EVENTS                               */
@@ -91,6 +91,7 @@ contract DoxaBondingCurve is ERC20, Initializable {
     function initialize(string memory _name, string memory _symbol) public initializer {
         name_ = _name;
         symbol_ = _symbol;
+        unfulfilledEtherInTier = 1 ether;
     }
 
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
