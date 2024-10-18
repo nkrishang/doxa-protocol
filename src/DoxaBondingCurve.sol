@@ -26,7 +26,7 @@ contract DoxaBondingCurve is ERC20 {
     ///         balance will be deposited as liquidity with the proportionate amount of tokens.
     uint256 private constant LIQUIDITY_THRESHOLD = 1 ether;
 
-    /// @notice The amount of token to LP: (10_000 * (0.997)^100) * 1 ether
+    /// @notice The amount of token to LP: (10_000 * (0.997)^100) * 1 ether = ~7404.8425 tokens.
     uint256 private constant LP_AMOUNT_PER_ETHER = 7404842595397826248704;
 
     /// @notice The tier after which no LP is provided but a buyback can be initiated.abi
@@ -51,9 +51,6 @@ contract DoxaBondingCurve is ERC20 {
     /// @notice The current tier.
     /// @dev Invariant: n_tier % 1 ether == 0
     uint256 public n_tier;
-
-    /// @notice Whether the contract will LP upon token purchases.
-    bool public lpDisabled;
 
     /// @notice The ether that can be used to buy tokens at the current decay factor
     /// @dev Invariant: 0 < unfulfilledEtherTillNextTier <= 1 ether
@@ -123,6 +120,7 @@ contract DoxaBondingCurve is ERC20 {
 
         // Get the current tier.
         uint256 n = n_tier;
+        uint256 n_initial = n;
 
         // Get the ether value sent.
         uint256 value = msg.value;
@@ -212,7 +210,7 @@ contract DoxaBondingCurve is ERC20 {
         _mint(msg.sender, amountOut);
 
         {            
-            if(address(this).balance >= LIQUIDITY_THRESHOLD && !lpDisabled) {
+            if(address(this).balance >= LIQUIDITY_THRESHOLD && n_initial < MAX_LP_TIER) {
                 // Deposit msg.value and LP_AMOUNT of tokens into AMM pool.
                 uint256 etherLp = address(this).balance ;
                 uint256 tokenLp = FixedPointMathLib.mulWad(etherLp, LP_AMOUNT_PER_ETHER);
@@ -235,10 +233,6 @@ contract DoxaBondingCurve is ERC20 {
                     to: address(this),
                     deadline: block.timestamp
                 });
-
-                if(n_tier >= MAX_LP_TIER) {
-                    lpDisabled = true;
-                }
             }
         }
         
@@ -257,7 +251,7 @@ contract DoxaBondingCurve is ERC20 {
      */
     function buyback() external {
 
-        if (!lpDisabled) {
+        if (n_tier < MAX_LP_TIER) {
             revert BuybackDisabled();
         }
 
