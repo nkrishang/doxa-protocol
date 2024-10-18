@@ -10,4 +10,4 @@ test_invariant:
 	@forge test --mc Invariant
 
 test_benchmark:
-	@forge test --mc Benchark --fork-url $(FORK_URL)
+	@forge test --mc Benchmark --fork-url $(FORK_URL)
