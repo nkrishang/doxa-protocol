@@ -1,6 +1,6 @@
 # Doxa
 
-**Doxa is the simplest way to fair-launch tokens with instant liquidity. Programmed for no pre-sales, no rug-pulls.**
+**Doxa is the simplest way to fair-launch tokens with instant liquidity. No pre-sales. No rug-pulls.**
 
 > **Note**: This protocol is **NOT** audited. Please use your own discretion.
 
