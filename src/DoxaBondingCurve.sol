@@ -29,6 +29,9 @@ contract DoxaBondingCurve is ERC20 {
     /// @notice The amount of token to LP: (10_000 * (0.997)^100) * 1 ether
     uint256 private constant LP_AMOUNT_PER_ETHER = 7404842595397826248704;
 
+    /// @notice The tier after which no LP is provided but a buyback can be initiated.abi
+    uint256 private constant MAX_LP_TIER = 100 ether;
+
     /// @notice The address of the WETH9 contract on Base.
     address private constant WETH = 0x4200000000000000000000000000000000000006;
 
@@ -48,6 +51,9 @@ contract DoxaBondingCurve is ERC20 {
     /// @notice The current tier.
     /// @dev Invariant: n_tier % 1 ether == 0
     uint256 public n_tier;
+
+    /// @notice Whether the contract will LP upon token purchases.
+    bool public lpDisabled;
 
     /// @notice The ether that can be used to buy tokens at the current decay factor
     /// @dev Invariant: 0 < unfulfilledEtherTillNextTier <= 1 ether
@@ -69,6 +75,12 @@ contract DoxaBondingCurve is ERC20 {
 
     /// @notice Error: msg.value sent to buy() is greater than MAX_VALUE
     error OverMaxValueSent();
+
+    /// @notice Error: buybacks not enabled.
+    error BuybackDisabled();
+
+    /// @notice Error: contract has zero ether balance.
+    error ZeroEtherBalance();
 
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
     /*                       CONSTRUCTOR                          */
@@ -199,8 +211,8 @@ contract DoxaBondingCurve is ERC20 {
         // Mint tokens
         _mint(msg.sender, amountOut);
 
-        {
-            if(address(this).balance > LIQUIDITY_THRESHOLD) {
+        {            
+            if(address(this).balance >= LIQUIDITY_THRESHOLD && !lpDisabled) {
                 // Deposit msg.value and LP_AMOUNT of tokens into AMM pool.
                 uint256 etherLp = address(this).balance ;
                 uint256 tokenLp = FixedPointMathLib.mulWad(etherLp, LP_AMOUNT_PER_ETHER);
@@ -223,9 +235,55 @@ contract DoxaBondingCurve is ERC20 {
                     to: address(this),
                     deadline: block.timestamp
                 });
+
+                if(n_tier >= MAX_LP_TIER) {
+                    lpDisabled = true;
+                }
             }
         }
         
         emit BuyTokens(msg.sender, msg.value, amountOut);
+    }
+
+    /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
+    /*                       BUYBACK                              */
+    /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
+
+    /**
+     * @notice Buyback tokens from AMM.
+     * 
+     * @dev The contract exchanges its entire ether balance in exchange for tokens, which it burns
+     *      to create upward price pressure.
+     */
+    function buyback() external {
+
+        if (!lpDisabled) {
+            revert BuybackDisabled();
+        }
+
+        uint256 bal = address(this).balance;
+        if (bal == 0) {
+            revert ZeroEtherBalance();
+        }
+
+        // Approve router to use ether LP
+        IWETH(WETH).deposit{value: bal}();
+        IWETH(WETH).approve(UNISWAP_V2_ROUTER, bal);
+        
+        address recipient = 0x000000000000000000000000000000000000dEaD;
+
+        address[] memory path = new address[](2);
+        path[0] = WETH;
+        path[1] = address(this);
+
+        uint256[] memory amounts = IUniswapV2Router01(UNISWAP_V2_ROUTER).swapExactTokensForTokens({
+            amountIn: bal,
+            amountOutMin: 0,
+            path: path,
+            to: recipient,
+            deadline: block.timestamp
+        });
+
+        _burn(recipient, amounts[1]);
     }
 }

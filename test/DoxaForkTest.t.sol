@@ -7,6 +7,7 @@ import {FixedPointMathLib} from "lib/solady/src/utils/FixedPointMathLib.sol";
 
 import {IUniswapV2Pair} from "src/interface/IUniswapV2Pair.sol";
 import {IUniswapV2Factory} from "src/interface/IUniswapV2Factory.sol";
+import {IUniswapV2Router01} from "src/interface/IUniswapV2Router01.sol";
 
 contract DoxaForkTest is Test {
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
@@ -34,6 +35,9 @@ contract DoxaForkTest is Test {
 
     error ZeroValueSent();
     error OverMaxValueSent();
+    error BuybackDisabled();
+    error ZeroEtherBalance();
+
 
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
     /*                       TEST VARS                            */
@@ -170,6 +174,58 @@ contract DoxaForkTest is Test {
     }
 
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
+    /*                       TEST: BUYBACK                        */
+    /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
+
+    function test_buyback_revert_zeroBalance() public {
+
+        for(uint256 i = 0; i < 100; i++) {
+            bondingCurve.buy{value: 1 ether}();
+        }
+
+        vm.expectRevert(ZeroEtherBalance.selector);
+        bondingCurve.buyback();
+    }
+
+    function test_buyback_revert_disabled() public {
+        vm.expectRevert(BuybackDisabled.selector);
+        bondingCurve.buyback();
+    }
+
+    function test_fuzz_buyBack(uint256 x) public {
+        vm.assume(x > 1 ether && x <= MAX_VALUE);
+        uint256 total;
+
+        console.log(block.number);
+        while(true) {
+            bondingCurve.buy{value: x}();
+            total += x;
+
+            if(total >= 100 ether) {
+                break;
+            }
+        }
+        assertEq(address(bondingCurve).balance, 0);
+
+        total = 0;
+        for(uint256 i = 0; i < 1000; i++) {
+            bondingCurve.buy{value: x}();
+            total += x;
+        }
+        
+        uint256 totalSupply = bondingCurve.totalSupply();
+
+        uint256 contractBalance = address(bondingCurve).balance;
+        assertEq(contractBalance, total);
+
+        uint256 amountOutSimulated = _simulateBuyback(contractBalance);
+        bondingCurve.buyback();
+
+        console.log(totalSupply);
+        assertEq(bondingCurve.totalSupply(), totalSupply - amountOutSimulated);
+    }
+
+    /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
     /*                       HELPERS                              */
     /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
 
@@ -212,5 +268,12 @@ contract DoxaForkTest is Test {
         unfulfilledInNewTier = unfulfilledInNewTier == 0 ? 1 ether : unfulfilledInNewTier;
 
         return (amountOut, newActiveTier, unfulfilledInNewTier);
+    }
+
+    function _simulateBuyback(uint256 etherAmount) internal view returns (uint256 amountBurned) {
+        IUniswapV2Pair uniswapV2Pair = IUniswapV2Pair(uniswapV2Factory.getPair(WETH, address(bondingCurve)));
+        (uint256 reserveX, uint256 reserveY, ) = uniswapV2Pair.getReserves();
+
+        amountBurned = IUniswapV2Router01(UNISWAP_V2_ROUTER).getAmountOut(etherAmount, reserveX, reserveY);
     }
 }
