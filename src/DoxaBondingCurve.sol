@@ -2,12 +2,13 @@
 pragma solidity ^0.8.28;
 
 import {ERC20} from "lib/solady/src/tokens/ERC20.sol";
+import {Initializable} from "lib/solady/src/utils/Initializable.sol";
 import {FixedPointMathLib} from "lib/solady/src/utils/FixedPointMathLib.sol";
 
 import {IWETH} from "src/interface/IWETH.sol";
 import {IUniswapV2Router01} from "src/interface/IUniswapV2Router01.sol";
 
-contract DoxaBondingCurve is ERC20 {
+contract DoxaBondingCurve is ERC20, Initializable {
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
     /*                       CONSTANTS                            */
     /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
@@ -83,7 +84,11 @@ contract DoxaBondingCurve is ERC20 {
     /*                       CONSTRUCTOR                          */
     /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
 
-    constructor(string memory _name, string memory _symbol) {
+    constructor() {
+        _disableInitializers();
+    }
+    
+    function initialize(string memory _name, string memory _symbol) public initializer {
         name_ = _name;
         symbol_ = _symbol;
     }
@@ -238,7 +243,7 @@ contract DoxaBondingCurve is ERC20 {
             }
         }
         
-        emit BuyTokens(msg.sender, msg.value, amountOut);
+        emit BuyTokens(msg.sender, amountOut, msg.value);
     }
 
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/

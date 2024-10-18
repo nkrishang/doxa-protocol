@@ -3,6 +3,7 @@ pragma solidity ^0.8.28;
 
 import {Test, console} from "forge-std/Test.sol";
 import {DoxaBondingCurve} from "src/DoxaBondingCurve.sol";
+import {DoxaFactory} from "src/DoxaFactory.sol";
 import {FixedPointMathLib} from "lib/solady/src/utils/FixedPointMathLib.sol";
 
 import {IUniswapV2Pair} from "src/interface/IUniswapV2Pair.sol";
@@ -51,7 +52,9 @@ contract DoxaForkTest is Test {
 
     function setUp() public {
         uniswapV2Factory = IUniswapV2Factory(UNISWAP_V2_FACTORY);
-        bondingCurve = new DoxaBondingCurve("MyToken", "TKN");
+
+        DoxaFactory factory = new DoxaFactory();
+        bondingCurve = DoxaBondingCurve(factory.createToken("MyToken", "TKN"));
     }
 
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
