@@ -12,10 +12,10 @@ contract DoxaBondingCurve is ERC20 {
     /*                       CONSTANTS                            */
     /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
 
-    /// @notice The decay rate for the token amount per 1 ether.
+    /// @notice The decay rate for the token amount sold per 1 ether.
     uint256 private constant DECAY_RATE = 0.997 ether;
 
-    /// @notice The token amount constant of the bonding curve equation.
+    /// @notice The initial token amount sold per 1 ether before any decay.
     uint256 private constant A = 10_000 ether;
 
     /// @notice The maximum ether that can be used to buy tokens in one transaction.
@@ -24,12 +24,12 @@ contract DoxaBondingCurve is ERC20 {
 
     /// @notice If the contract balance exceeds this amount in a buy transaction, the full contract 
     ///         balance will be deposited as liquidity with the proportionate amount of tokens.
-    uint256 private constant LIQUIDITY_THRESHOLD = 1 ether;
+    uint256 private constant LP_THRESHOLD = 1 ether;
 
     /// @notice The amount of token to LP: (10_000 * (0.997)^100) * 1 ether = ~7404.8425 tokens.
     uint256 private constant LP_AMOUNT_PER_ETHER = 7404842595397826248704;
 
-    /// @notice The tier after which no LP is provided but a buyback can be initiated.abi
+    /// @notice The tier after which no LP is provided but a buyback can be initiated
     uint256 private constant MAX_LP_TIER = 100 ether;
 
     /// @notice The address of the WETH9 contract on Base.
@@ -49,12 +49,12 @@ contract DoxaBondingCurve is ERC20 {
     string private symbol_;
 
     /// @notice The current tier.
-    /// @dev Invariant: n_tier % 1 ether == 0
-    uint256 public n_tier;
+    /// @dev Invariant: tier == etherSentToBuyInLifetime - (etherSentToBuyInLifetime % 1 ether)
+    uint128 public tier;
 
     /// @notice The ether that can be used to buy tokens at the current decay factor
-    /// @dev Invariant: 0 < unfulfilledEtherTillNextTier <= 1 ether
-    uint256 public unfulfilledEtherTillNextTier = 1 ether;
+    /// @dev Invariant: unfulfilledEtherInTier == 1 ether - (etherSentToBuyInLifetime % 1 ether)
+    uint128 public unfulfilledEtherInTier = 1 ether;
 
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
     /*                       EVENTS                               */
@@ -109,9 +109,9 @@ contract DoxaBondingCurve is ERC20 {
     /**
      * @notice Buy tokens from the bonding curve in exchange for all ether sent to the function.
      *
-     * @dev The amount of tokens owed per 1 ether sent is calculated as (A * (NEXT_PRICE_BPS)^tier) / (MAX_BPS)^tier.
+     * @dev The amount of tokens sold per 1 ether is calculated as (A * (0.997)^tier)
      *
-     *      The contract deposits the sent ether (K) and (K * A * (NEXT_PRICE_BPS)^MAX_LP_TIER) / (MAX_BPS)^MAX_LP_TIER
+     *      The contract deposits the sent ether (K) and (K * A * (0.997)^MAX_LP_TIER)
      *      amount of tokens as liquidity to the AMM.
      *
      * @return amountOut The amount of tokens minted to the caller in exchange for all ether sent.
@@ -119,7 +119,7 @@ contract DoxaBondingCurve is ERC20 {
     function buy() public payable returns (uint256 amountOut) {
 
         // Get the current tier.
-        uint256 n = n_tier;
+        uint256 n = tier;
         uint256 n_initial = n;
 
         // Get the ether value sent.
@@ -132,32 +132,29 @@ contract DoxaBondingCurve is ERC20 {
         }
 
         // 1. Calculate amountOut for the unfulfilled ether in the current tier using the current decay rate.
-        uint256 unfulfilled = unfulfilledEtherTillNextTier;
+        uint256 unfulfilled = unfulfilledEtherInTier;
         
         /**
-         * Invariant: `unfulfilledEtherTillNextTier` is never 0 since we calculate (at the end of the function) that:
+         * Invariant: `unfulfilledEtherInTier` is never 0.
          * 
-         * ```
-         * unfulfilledEtherTillNextTier = 1 ether - value
-         * ```
-         * 
-         * If (value >= 1 ether) at this point, something has gone wrong.
-         * 
-         * Therefore, this if-block is necessary only if 0 < unfulfilled eth < 1 ether. Else, this block's calculation
+         * This if-block is necessary only if 0 < unfulfilled eth < 1 ether. Else, this block's calculation
          * is accounted for by the sum of the geometric series in the second if-block.
          */
         if (unfulfilled < 1 ether) {
             // Calculate decay = (0.997)^n
             uint256 decay = uint256(FixedPointMathLib.powWad(int(DECAY_RATE), int(n)));
             
-            // Update amountOut += (A * (0.997)^n) * unfulfilled where 0 < unfulfilled < 1
             if(value < unfulfilled) {
+                // Update amountOut += (A * decay * value)
                 amountOut += FixedPointMathLib.mulWad(value, FixedPointMathLib.mulWad(A, decay));
                 
-                // Store unfulfilled ether till next tier.
-                unfulfilledEtherTillNextTier = unfulfilled - value;
+                // Update unfulfilled ether in tier
+                unfulfilled -= value;
+
+                // Update value
                 value = 0;
             } else {
+                // Update amountOut += (A * decay * unfulfilled)
                 amountOut += FixedPointMathLib.mulWad(unfulfilled, FixedPointMathLib.mulWad(A, decay));
 
                 // Update value
@@ -166,8 +163,8 @@ contract DoxaBondingCurve is ERC20 {
                 // Update tier
                 n += 1 ether;
 
-                // Update unfulfilled
-                unfulfilledEtherTillNextTier = 1 ether;
+                // Reset unfulfilled ether in tier
+                unfulfilled = 1 ether;
             }
         }
 
@@ -196,22 +193,27 @@ contract DoxaBondingCurve is ERC20 {
             // Calculate decay = (0.997)^n
             uint256 decay = uint256(FixedPointMathLib.powWad(int(DECAY_RATE), int(n)));
 
-            // Update amountOut += (A * (0.997)^n) * value where 0 < value < 1
+            // Update amountOut += (A * decay * value) where 0 < value < 1
             amountOut += FixedPointMathLib.mulWad(value, FixedPointMathLib.mulWad(A, decay));
 
-            // Store unfulfilled ether till next tier.
-            unfulfilledEtherTillNextTier = 1 ether - value;
+            // Update unfulfilled ether in tier
+            unfulfilled = 1 ether - value;
         }
 
         // Store updated tier
-        n_tier = n;
+        tier = uint128(n);
+
+        // Store unfulfilled ether in tier
+        unfulfilledEtherInTier = uint128(unfulfilled);
 
         // Mint tokens
         _mint(msg.sender, amountOut);
 
+        // Provide liquidity in Uniswap V2
         {            
-            if(address(this).balance >= LIQUIDITY_THRESHOLD && n_initial < MAX_LP_TIER) {
-                // Deposit msg.value and LP_AMOUNT of tokens into AMM pool.
+            if(address(this).balance >= LP_THRESHOLD && n_initial < MAX_LP_TIER) {
+                
+                // Deposit contract balance and proportionate tokens into pool.
                 uint256 etherLp = address(this).balance ;
                 uint256 tokenLp = FixedPointMathLib.mulWad(etherLp, LP_AMOUNT_PER_ETHER);
     
@@ -243,15 +245,10 @@ contract DoxaBondingCurve is ERC20 {
     /*                       BUYBACK                              */
     /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
 
-    /**
-     * @notice Buyback tokens from AMM.
-     * 
-     * @dev The contract exchanges its entire ether balance in exchange for tokens, which it burns
-     *      to create upward price pressure.
-     */
+    /// @notice Buyback tokens from Uniswap V2 using contract balance and burn them.
     function buyback() external {
 
-        if (n_tier < MAX_LP_TIER) {
+        if (tier < MAX_LP_TIER) {
             revert BuybackDisabled();
         }
 
@@ -260,16 +257,18 @@ contract DoxaBondingCurve is ERC20 {
             revert ZeroEtherBalance();
         }
 
-        // Approve router to use ether LP
+        // Approve router to use ether.
         IWETH(WETH).deposit{value: bal}();
         IWETH(WETH).approve(UNISWAP_V2_ROUTER, bal);
         
+        // Send tokens to dummy burn address in order to later burn tokens.
         address recipient = 0x000000000000000000000000000000000000dEaD;
 
         address[] memory path = new address[](2);
         path[0] = WETH;
         path[1] = address(this);
 
+        // Use all the contract balance for whatever amount of tokens that can be bought.
         uint256[] memory amounts = IUniswapV2Router01(UNISWAP_V2_ROUTER).swapExactTokensForTokens({
             amountIn: bal,
             amountOutMin: 0,
@@ -278,6 +277,7 @@ contract DoxaBondingCurve is ERC20 {
             deadline: block.timestamp
         });
 
+        // Burn the bought tokens.
         _burn(recipient, amounts[1]);
     }
 }

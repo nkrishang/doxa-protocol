@@ -17,7 +17,6 @@ contract DoxaForkTest is Test {
     uint256 private constant DECAY_RATE = 0.997 ether;
     uint256 private constant A = 10_000 ether;
     uint256 private constant MAX_VALUE = 10 ether;
-    uint256 private constant LIQUIDITY_THRESHOLD = 1 ether;
     uint256 private constant LP_AMOUNT_PER_ETHER = 7404842595397826248704;
     address private constant WETH = 0x4200000000000000000000000000000000000006;
     address private constant UNISWAP_V2_FACTORY = 0x8909Dc15e40173Ff4699343b6eB8132c65e18eC6;
@@ -92,8 +91,8 @@ contract DoxaForkTest is Test {
         } else {
             assertEq(amountOutX, amountOutCheckX);
         }
-        assertEq(unfulfilledInNewTierX, bondingCurve.unfulfilledEtherTillNextTier());
-        assertEq(newActiveTierX, bondingCurve.n_tier());
+        assertEq(unfulfilledInNewTierX, bondingCurve.unfulfilledEtherInTier());
+        assertEq(newActiveTierX, bondingCurve.tier());
 
 
         // Alice is the next purchaser, and she buys tokens worth `y` ether at the updated price.
@@ -115,8 +114,8 @@ contract DoxaForkTest is Test {
         } else {
             assertEq(amountOutY, amountOutCheckY);
         }
-        assertEq(unfulfilledInNewTierY, bondingCurve.unfulfilledEtherTillNextTier());
-        assertEq(newActiveTierY, bondingCurve.n_tier());
+        assertEq(unfulfilledInNewTierY, bondingCurve.unfulfilledEtherInTier());
+        assertEq(newActiveTierY, bondingCurve.tier());
     }
 
     function test_fuzz_buy_lp(uint256 y) public {
