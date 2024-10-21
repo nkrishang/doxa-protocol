@@ -112,24 +112,13 @@ contract DoxaBondingCurve is ERC20, Initializable {
     /*                       BUY TOKENS                           */
     /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
 
-    /**
-     * @notice Buy tokens from the bonding curve in exchange for all ether sent to the function.
-     *
-     * @dev The amount of tokens sold per 1 ether is calculated as (A * (0.997)^tier)
-     *
-     *      The contract deposits the sent ether (K) and (K * A * (0.997)^MAX_LP_TIER)
-     *      amount of tokens as liquidity to the AMM.
-     *
-     * @return amountOut The amount of tokens minted to the caller in exchange for all ether sent.
-     */
-    function buy() public payable returns (uint256 amountOut) {
-
+    /// @notice Returns the amount of tokens that will be minted in exchange for the given amount of ether.
+    function getAmountOut(uint256 etherAmount) public view returns (uint256 amountOut, uint256 newTier, uint256 newUnfulfilledEtherInTier) {
         // Get the current tier.
         uint256 n = tier;
-        uint256 n_initial = n;
 
         // Get the ether value sent.
-        uint256 value = msg.value;
+        uint256 value = etherAmount;
         if (value == 0) {
             revert ZeroValueSent();
         }
@@ -206,11 +195,38 @@ contract DoxaBondingCurve is ERC20, Initializable {
             unfulfilled = 1 ether - value;
         }
 
+        // Return updated tier
+        newTier = uint128(n);
+
+        // Return unfulfilled ether in tier
+        newUnfulfilledEtherInTier = uint128(unfulfilled);
+    }
+
+    /**
+     * @notice Buy tokens from the bonding curve in exchange for all ether sent to the function.
+     *
+     * @dev The amount of tokens sold per 1 ether is calculated as (A * (0.997)^tier)
+     *
+     *      The contract deposits the sent ether (K) and (K * A * (0.997)^MAX_LP_TIER)
+     *      amount of tokens as liquidity to the AMM.
+     *
+     * @return amountOut The amount of tokens minted to the caller in exchange for all ether sent.
+     */
+    function buy() public payable returns (uint256 amountOut) {
+
+        // Get the current tier.
+        uint256 n_initial = tier;
+
+        (uint256 amountOutTokens, uint256 newTier, uint256 newUnfulfilledEtherInTier) = getAmountOut(msg.value);
+
+        // Return amount of tokens
+        amountOut = amountOutTokens;
+
         // Store updated tier
-        tier = uint128(n);
+        tier = uint128(newTier);
 
         // Store unfulfilled ether in tier
-        unfulfilledEtherInTier = uint128(unfulfilled);
+        unfulfilledEtherInTier = uint128(newUnfulfilledEtherInTier);
 
         // Mint tokens
         _mint(msg.sender, amountOut);
