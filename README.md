@@ -24,8 +24,8 @@ upward price pressure.
 
 **Doxa** is live on [Base](https://basescan.org/) and all contracts are verified.
 
-- `DoxaFactory`: [0x8191bf8672b7142de7b2ff8eeded033a672d17b4](https://basescan.org/address/0x8191bf8672b7142de7b2ff8eeded033a672d17b4)
-- `DoxaBondingCurve` implementation: [0xB6cF389aC2B12dA0C5C648434176DfCc13b8Bba0](https://basescan.org/address/0xB6cF389aC2B12dA0C5C648434176DfCc13b8Bba0)
+- `DoxaFactory`: [0x1d5756eF591743E02c2FdDa287e34B9846017CFc](https://basescan.org/address/0x1d5756eF591743E02c2FdDa287e34B9846017CFc)
+- `DoxaBondingCurve` implementation: [0xF907FdC9437E2B72D155747DBDd4C2905AB4A957](https://basescan.org/address/0xF907FdC9437E2B72D155747DBDd4C2905AB4A957)
 
 ## Usage
 
