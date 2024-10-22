@@ -49,6 +49,9 @@ contract DoxaBondingCurve is ERC20, Initializable {
     /// @notice Symbol of the token.
     string private symbol_;
 
+    /// @notice Metadata URI of the token.
+    string private metadataURI_;
+
     /// @notice The current tier.
     /// @dev Invariant: tier == etherSentToBuyInLifetime - (etherSentToBuyInLifetime % 1 ether)
     uint128 public tier;
@@ -88,9 +91,10 @@ contract DoxaBondingCurve is ERC20, Initializable {
         _disableInitializers();
     }
     
-    function initialize(string memory _name, string memory _symbol) public initializer {
+    function initialize(string memory _name, string memory _symbol, string memory _metadataURI) public initializer {
         name_ = _name;
         symbol_ = _symbol;
+        metadataURI_ = _metadataURI;
         unfulfilledEtherInTier = 1 ether;
     }
 
@@ -106,6 +110,11 @@ contract DoxaBondingCurve is ERC20, Initializable {
     /// @dev Returns the symbol of the token.
     function symbol() public view override returns (string memory) {
         return symbol_;
+    }
+
+    /// @dev Returns the metadata URI of the token.
+    function metadataURI() public view returns (string memory) {
+        return metadataURI_;
     }
 
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/

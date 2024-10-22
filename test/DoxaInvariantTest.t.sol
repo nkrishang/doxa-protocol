@@ -39,7 +39,7 @@ contract DoxaInvariantTest is Test {
     /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
 
     function setUp() public {
-        bondingCurve = new DoxaBondingCurveNoLp("MyToken", "TKN");
+        bondingCurve = new DoxaBondingCurveNoLp("MyToken", "TKN", "ipfs://");
 
         // Invariant tests:
         targetContract(address(this));

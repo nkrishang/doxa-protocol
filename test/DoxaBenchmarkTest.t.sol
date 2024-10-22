@@ -12,14 +12,14 @@ contract DoxaBenchmarkTest is Test {
 
     function setUp() public {
         factory = new DoxaFactory();
-        bondingCurve = DoxaBondingCurve(factory.createToken("MyToken", "TKN"));
+        bondingCurve = DoxaBondingCurve(factory.createToken("MyToken", "TKN", "ipfs://", bytes32("Salt")));
     }
 
     function test_benchmark_createToken() public {
         vm.pauseGasMetering();
         DoxaFactory fac = factory;
         vm.resumeGasMetering();
-        fac.createToken("MyToken", "TKN");
+        fac.createToken("MyToken", "TKN", "ipfs://", bytes32("Some Salt"));
     }
 
     function test_benchmark_buy_oneEther() public {

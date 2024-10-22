@@ -32,6 +32,9 @@ contract DoxaBondingCurveNoLp is ERC20 {
     /// @notice Symbol of the token.
     string private symbol_;
 
+    /// @notice Metadata URI of the token.
+    string private metadataURI_;
+
     /// @notice The current tier.
     /// @dev Invariant: tier == etherSentToBuyInLifetime - (etherSentToBuyInLifetime % 1 ether)
     uint128 public tier;
@@ -61,9 +64,10 @@ contract DoxaBondingCurveNoLp is ERC20 {
     /*                       CONSTRUCTOR                          */
     /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
 
-    constructor(string memory _name, string memory _symbol) {
+    constructor(string memory _name, string memory _symbol, string memory _metadataURI) {
         name_ = _name;
         symbol_ = _symbol;
+        metadataURI_ = _metadataURI;
     }
 
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
@@ -78,6 +82,11 @@ contract DoxaBondingCurveNoLp is ERC20 {
     /// @dev Returns the symbol of the token.
     function symbol() public view override returns (string memory) {
         return symbol_;
+    }
+
+    /// @dev Returns the metadata URI of the token.
+    function metadataURI() public view returns (string memory) {
+        return metadataURI_;
     }
 
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/

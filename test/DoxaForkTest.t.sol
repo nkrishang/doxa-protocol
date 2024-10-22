@@ -43,6 +43,7 @@ contract DoxaForkTest is Test {
     /*                       TEST VARS                            */
     /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
 
+    DoxaFactory public factory;
     DoxaBondingCurve public bondingCurve;
     IUniswapV2Factory public uniswapV2Factory;
 
@@ -53,8 +54,17 @@ contract DoxaForkTest is Test {
     function setUp() public {
         uniswapV2Factory = IUniswapV2Factory(UNISWAP_V2_FACTORY);
 
-        DoxaFactory factory = new DoxaFactory();
-        bondingCurve = DoxaBondingCurve(factory.createToken("MyToken", "TKN"));
+        factory = new DoxaFactory();
+        bondingCurve = DoxaBondingCurve(factory.createToken("MyToken", "TKN", "ipfs://", bytes32("Salt")));
+    }
+
+    /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
+    /*                       TEST: DEPLOY                         */
+    /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
+
+    function test_deploymentAddress() public {
+        address addr = factory.createToken("MyToken", "TKN", "ipfs://", bytes32("Some Salt"));
+        assertEq(addr, factory.predictTokenAddress(bytes32("Some Salt")));
     }
 
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
@@ -139,11 +149,11 @@ contract DoxaForkTest is Test {
         (uint256 reserve0X, uint256 reserve1X, ) = uniswapV2Pair.getReserves();
         
         uint256 result = FixedPointMathLib.mulWad(LP_AMOUNT_PER_ETHER, x);
-        assertEq(reserve1X, x);
-        if(result > reserve0X) {
-            assertTrue(result - reserve0X < 10);
+        assertEq(reserve0X, x);
+        if(result > reserve1X) {
+            assertTrue(result - reserve1X < 10);
         } else {
-            assertTrue(reserve0X - result < 10);
+            assertTrue(reserve1X - result < 10);
         }
 
         // Check whether LP shares minted to the contract
@@ -162,17 +172,17 @@ contract DoxaForkTest is Test {
         (uint256 reserve0XY, uint256 reserve1XY, ) = uniswapV2Pair.getReserves();
 
         result = FixedPointMathLib.mulWad(LP_AMOUNT_PER_ETHER, (x+y));
-        assertEq(reserve1XY, x+y);    
-        if(result > reserve0XY) {
-            assertTrue(result - reserve0XY < 10);
+        assertEq(reserve0XY, x+y);    
+        if(result > reserve1XY) {
+            assertTrue(result - reserve1XY < 10);
         } else {
-            assertTrue(reserve0XY - result < 10);
+            assertTrue(reserve1XY - result < 10);
         }
 
         assertGt(uniswapV2Pair.balanceOf(address(bondingCurve)), bal);
 
         // Check token price.
-        assertEq(FixedPointMathLib.divWadUp(reserve0XY, reserve1XY), LP_AMOUNT_PER_ETHER);
+        assertEq(FixedPointMathLib.divWadUp(reserve1XY, reserve0XY), LP_AMOUNT_PER_ETHER);
     }
 
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
@@ -198,7 +208,6 @@ contract DoxaForkTest is Test {
         vm.assume(x > 1 ether && x <= MAX_VALUE);
         uint256 total;
 
-        console.log(block.number);
         while(true) {
             bondingCurve.buy{value: x}();
             total += x;
@@ -222,8 +231,7 @@ contract DoxaForkTest is Test {
 
         uint256 amountOutSimulated = _simulateBuyback(contractBalance);
         bondingCurve.buyback();
-
-        console.log(totalSupply);
+        
         assertEq(bondingCurve.totalSupply(), totalSupply - amountOutSimulated);
     }
 
@@ -276,6 +284,6 @@ contract DoxaForkTest is Test {
         IUniswapV2Pair uniswapV2Pair = IUniswapV2Pair(uniswapV2Factory.getPair(WETH, address(bondingCurve)));
         (uint256 reserveX, uint256 reserveY, ) = uniswapV2Pair.getReserves();
 
-        amountBurned = IUniswapV2Router01(UNISWAP_V2_ROUTER).getAmountOut(etherAmount, reserveY, reserveX);
+        amountBurned = IUniswapV2Router01(UNISWAP_V2_ROUTER).getAmountOut(etherAmount, reserveX, reserveY);
     }
 }
